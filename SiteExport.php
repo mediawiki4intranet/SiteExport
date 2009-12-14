@@ -165,8 +165,9 @@ function seUpdateArticle($article, $text = NULL, $revision = NULL, $track = NULL
             break;
         }
     }
-    foreach ($flush as $tt)
-        seUpdateArticle(new Article(Title::makeTitleSafe(NS_MAIN, $tt)), NULL, NULL, $track);
+    if ($flush)
+        foreach ($flush as $tt)
+            seUpdateArticle(new Article(Title::makeTitleSafe(NS_MAIN, $tt)), NULL, NULL, $track);
     $pages = seGetLinksTo($title);
     foreach ($pages as $page)
         seUpdateArticle(new Article($page), NULL, NULL, $track);
