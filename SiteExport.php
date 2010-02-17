@@ -50,10 +50,10 @@ function seGtsrHandleNews($article, $html)
 
 function seGtsrFixLinks($article, $html)
 {
-    $html = preg_replace('!/wiki/index.php/GT-Service:_([^<>\'"#]*)!is', '/\1.htm', $html);
+    $html = preg_replace('!/wiki/(?:index\.php/)?GT-Service:_([^<>\'"#]*)!is', '/\1.htm', $html);
     $html = str_replace('title="GT-Service:_', 'title="', $html);
     $html = str_replace('/wiki/images/', 'http://www.yourcmc.ru/wiki/images/', $html);
-    $html = preg_replace_callback('#/wiki/index.php/(Image|File|Файл|%D0%A4%D0%B0%D0%B9%D0%BB|Изображение|%D0%98%D0%B7%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5):([^<>\'"]*)#is', 'sePopupCallback', $html);
+    $html = preg_replace_callback('#/wiki/(?:index\.php/)?(Image|File|Файл|%D0%A4%D0%B0%D0%B9%D0%BB|Изображение|%D0%98%D0%B7%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5):([^<>\'"]*)#is', 'sePopupCallback', $html);
     $html = preg_replace('#<p(?:\s+[^<>]+)?>((?:\s*<!--.*?-->)*\s*)</p\s*>#is', '\1', $html);
     return $html;
 }
@@ -66,11 +66,11 @@ function seEmotionFixLinks($article, $html)
     $html = preg_replace('/<!--(#set|EXPORTFLUSH:).*?-->/is', '', $html);
     if (stripos($seEmotionSet, 'var="title"') === false)
         $seEmotionSet = '<!--#set var="title" value="' . $article->getTitle()->getSubpageText() . '"-->' . $seEmotionSet;
-    $html = preg_replace('!/wiki/index.php/Emotion/([^<>\'"#]*)!is', '/\1.htm', $html);
+    $html = preg_replace('!/wiki/(?:index\.php/)?Emotion/([^<>\'"#]*)!is', '/\1.htm', $html);
     $html = str_replace('title="Emotion/', 'title="', $html);
     $html = str_replace('/wiki/images/', 'http://www.yourcmc.ru/wiki/images/', $html);
-    //$html = preg_replace('#/wiki/index.php/(Image|File|Файл|%D0%A4%D0%B0%D0%B9%D0%BB|Изображение|%D0%98%D0%B7%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5):([^<>\'"]*)#is', 'http://yourcmc.ru\0', $html);
-    $html = preg_replace_callback('#/wiki/index.php/(Image|File|Файл|%D0%A4%D0%B0%D0%B9%D0%BB|Изображение|%D0%98%D0%B7%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5):([^<>\'"]*)#is', 'sePopupCallback', $html);
+    //$html = preg_replace('#/wiki/(?:index\.php/)?(Image|File|Файл|%D0%A4%D0%B0%D0%B9%D0%BB|Изображение|%D0%98%D0%B7%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5):([^<>\'"]*)#is', 'http://yourcmc.ru\0', $html);
+    $html = preg_replace_callback('#/wiki/(?:index\.php/)?(Image|File|Файл|%D0%A4%D0%B0%D0%B9%D0%BB|Изображение|%D0%98%D0%B7%D0%BE%D0%B1%D1%80%D0%B0%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5):([^<>\'"]*)#is', 'sePopupCallback', $html);
     $html = preg_replace('#<p(?:\s+[^<>]+)?>((?:\s*<!--.*?-->)*\s*)</p\s*>#is', '\1', $html);
     return $html;
 }
