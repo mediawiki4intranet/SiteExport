@@ -22,7 +22,7 @@ $wgExtensionCredits['specialpage'][] = array(
 );
 
 /* Хук здесь, а класс подгружается по необходимости */
-function wfSiteExportArticleSaveComplete(&$article, &$user, $text, $summary, &$minoredit, $watchthis, $sectionanchor, &$flags, $revision)
+function wfSiteExportArticleSaveComplete(&$article, &$user, $text, $summary, $minoredit, $watchthis, $sectionanchor, &$flags, $revision)
 {
     global $wgSiteExportHandlers;
     $key = $article->getTitle()->getText();
