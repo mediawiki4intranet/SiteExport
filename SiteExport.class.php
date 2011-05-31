@@ -2,7 +2,8 @@
 
 /* Расширение для экспорта MediaWiki-статей в HTML-файлы.
    Добавьте в данный коктейль SSI и получите самый настоящий сайт.
-   (c) Виталий Филиппов <vitalif@yourcmc.ru>, 2009-2010 */
+   (c) Виталий Филиппов <vitalif@yourcmc.ru>, 2009+
+   Лицензия: GPLv3 или более поздняя */
 
 if (!defined('MEDIAWIKI')) die("Not an entry point.");
 
@@ -10,6 +11,7 @@ class MediaWikiSiteExport
 {
     /* отслеживаем уже обновлённые статьи, чтобы повторно не обновлять и не зацикливаться */
     var $track = array();
+    var $pending = array();
     /* рекурсивное создание каталога */
     static function mkpath($path, $mode = 0755)
     {
@@ -40,6 +42,24 @@ class MediaWikiSiteExport
             $pages[] = Title::newFromId($row['tl_from']);
         return $pages;
     }
+    /* Сбросить состояние "обновлённых" страниц */
+    function reset()
+    {
+        $this->track = array();
+    }
+    /* Добавить статью в очередь обновлений */
+    function enqueue($article)
+    {
+        if (!$this->pending[$article->getId()])
+            $this->pending[$article->getId()] = $article;
+    }
+    /* Вызывается через $wgDeferredUpdateList после конца запроса, обновляет статьи */
+    function doUpdate()
+    {
+        while ($article = array_shift($this->pending))
+            $this->update_article($article);
+        $this->pending = array();
+    }
     /* обновление статьи по заголовку */
     function update_title($title)
     {
@@ -47,7 +67,7 @@ class MediaWikiSiteExport
             $title = Title::makeTitleSafe(NS_MAIN, $title);
         if (!$title)
             return false;
-        return $this->update_article(new Article($title));
+        return $this->enqueue(new Article($title));
     }
     /* обновление статьи */
     function update_article(&$article, $text = NULL, $revision = NULL)
@@ -123,13 +143,5 @@ class MediaWikiSiteExport
         $text = "<root>$html</root>";
         $dom->loadXML($text);
         return $proc->transformToXML($dom);
-    }
-    /* Singleton */
-    static $singleton;
-    static function singleton()
-    {
-        if (!self::$singleton)
-            self::$singleton = new MediaWikiSiteExport();
-        return self::$singleton;
     }
 }

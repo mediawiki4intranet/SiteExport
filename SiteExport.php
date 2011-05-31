@@ -2,7 +2,8 @@
 
 /* Расширение для экспорта MediaWiki-статей в HTML-файлы.
    Добавьте в данный коктейль SSI и получите самый настоящий сайт.
-   (c) Виталий Филиппов <vitalif@yourcmc.ru>, 2009-2010 */
+   (c) Виталий Филиппов <vitalif@yourcmc.ru>, 2009+
+   Лицензия: GPLv3 или более поздняя */
 
 if (!defined('MEDIAWIKI')) die("Not an entry point.");
 
@@ -10,9 +11,9 @@ define('SITEEXPORT_VERSION', "1.0.6, 2010-03-03");
 
 $dir = dirname(__FILE__) . '/';
 $wgAutoloadClasses['MediaWikiSiteExport'] = $dir . 'SiteExport.class.php';
-$wgHooks['ArticleSaveComplete'][] = 'wfSiteExportArticleSaveComplete';
+$wgExtensionFunctions[] = 'wfSiteExport_INit';
 
-$wgExtensionCredits['specialpage'][] = array(
+$wgExtensionCredits['other'][] = array(
     'path'        => __FILE__,
     'name'        => 'SiteExport',
     'version'     => SITEEXPORT_VERSION,
@@ -21,17 +22,44 @@ $wgExtensionCredits['specialpage'][] = array(
     'description' => 'Support for exporting Wiki page text into static HTML automatically on article updates',
 );
 
-/* Хук здесь, а класс подгружается по необходимости */
-function wfSiteExportArticleSaveComplete(&$article, &$user, $text, $summary, $minoredit, $watchthis, $sectionanchor, &$flags, $revision)
+// Initialize extension (select proper hook depending on MW version)
+// Hooks are here, class is autoloaded lazily
+function wfSiteExport_Init()
 {
-    global $wgSiteExportHandlers;
+    global $wgVersion, $wgHooks;
+    if ($wgVersion < '1.14')
+        $wgHooks['NewRevisionFromEditComplete'][] = 'wfSiteExport_NewRevisionFromEditComplete';
+    else
+        $wgHooks['ArticleEditUpdates'][] = 'wfSiteExport_ArticleEditUpdates';
+}
+
+function wfSiteExport_NewRevisionFromEditComplete($article, $rev, $baseID, $user)
+{
+    wfSiteExport_Update($article);
+    return true;
+}
+
+function wfSiteExport_ArticleEditUpdates($article, $editInfo, $changed)
+{
+    wfSiteExport_Update($article);
+    return true;
+}
+
+// Queues the article for update
+function wfSiteExport_Update($article)
+{
+    global $wgSiteExportHandlers, $wgSiteExportExporter, $wgDeferredUpdateList;
     $key = $article->getTitle()->getText();
     foreach ($wgSiteExportHandlers as $prefix => $hspec)
     {
         if (substr($key, 0, strlen($prefix)) == $prefix)
         {
-            $exporter = MediaWikiSiteExport::singleton();
-            $exporter->update_article($article, $text, $revision);
+            if (!$wgSiteExportExporter)
+            {
+                $wgSiteExportExporter = new MediaWikiSiteExport();
+                $wgDeferredUpdateList[] = $wgSiteExportExporter;
+            }
+            $wgSiteExportExporter->enqueue($article);
         }
     }
     return true;
