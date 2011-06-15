@@ -28,18 +28,28 @@ class MediaWikiSiteExport
         }
         return true;
     }
-    /* получение включений статьи */
+    /* получение включений статьи как шаблона или как изображения */
     static function get_links($title)
     {
         $dbr = wfGetDB(DB_SLAVE);
         $res = $dbr->select(
-            'templatelinks',
-            array('tl_from'),
-            array('tl_title' => $title->getDBkey(), 'tl_namespace' => $title->getNamespace()),
+            array('templatelinks', 'page'), 'page.*',
+            array('page_id=tl_from', 'tl_title' => $title->getDBkey(), 'tl_namespace' => $title->getNamespace()),
             __METHOD__);
         $pages = array();
-        while ($row = $dbr->fetchRow($res))
-            $pages[] = Title::newFromId($row['tl_from']);
+        foreach ($res as $row)
+            $pages[$row->page_id] = Title::newFromRow($row);
+        if ($title->getNamespace() == NS_FILE)
+        {
+            // Для файлов добавляем включения файлов
+            $res = $dbr->select(
+                array('imagelinks', 'page'), 'page.*',
+                array('page_id=il_from', 'il_to' => $title->getDBkey()),
+                __METHOD__);
+            foreach ($res as $row)
+                if (!$pages[$row->page_id])
+                    $pages[$row->page_id] = Title::newFromRow($row);
+        }
         return $pages;
     }
     /* Сбросить состояние "обновлённых" страниц */
@@ -56,6 +66,8 @@ class MediaWikiSiteExport
     /* Вызывается через $wgDeferredUpdateList после конца запроса, обновляет статьи */
     function doUpdate()
     {
+        // Очищаем кэш RepoGroup, чтобы при импорте корректно отразились картинки
+        RepoGroup::singleton()->cache = array();
         while ($article = array_shift($this->pending))
             $this->update_article($article);
         $this->pending = array();
