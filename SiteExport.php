@@ -9,6 +9,9 @@ if (!defined('MEDIAWIKI')) die("Not an entry point.");
 
 define('SITEEXPORT_VERSION', "1.0.6, 2010-03-03");
 
+$wgSiteExportHandlers = array();
+$wgSiteExportExporter = NULL;
+
 $dir = dirname(__FILE__) . '/';
 $wgAutoloadClasses['MediaWikiSiteExport'] = $dir . 'SiteExport.class.php';
 $wgExtensionFunctions[] = 'wfSiteExport_INit';
@@ -59,7 +62,7 @@ function wfSiteExport_Update($article)
                 $wgSiteExportExporter = new MediaWikiSiteExport();
                 $wgDeferredUpdateList[] = $wgSiteExportExporter;
             }
-            $wgSiteExportExporter->enqueue($article);
+            $wgSiteExportExporter->enqueue($article->getTitle());
         }
     }
     return true;

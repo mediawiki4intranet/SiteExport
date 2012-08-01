@@ -9,8 +9,6 @@ if (!defined('MEDIAWIKI')) die("Not an entry point.");
 
 class MediaWikiSiteExport
 {
-    /* отслеживаем уже обновлённые статьи, чтобы повторно не обновлять и не зацикливаться */
-    var $track = array();
     var $pending = array();
     /* рекурсивное создание каталога */
     static function mkpath($path, $mode = 0755)
@@ -52,43 +50,34 @@ class MediaWikiSiteExport
         }
         return $pages;
     }
-    /* Сбросить состояние "обновлённых" страниц */
-    function reset()
+    /**
+     * Добавить статью в очередь обновлений
+     * Всегда по Title'у, ибо объект статьи всегда пересоздаётся,
+     * чтобы не зависеть от его текущего состояния.
+     */
+    public function enqueue(Title $title)
     {
-        $this->track = array();
-    }
-    /* Добавить статью в очередь обновлений */
-    function enqueue($article)
-    {
-        if (!$this->pending[$article->getId()])
-            $this->pending[$article->getId()] = $article;
+        $id = $title->getArticleId();
+        if ($id && empty($this->pending[$id]))
+            $this->pending[$id] = $title;
     }
     /* Вызывается через $wgDeferredUpdateList после конца запроса, обновляет статьи */
-    function doUpdate()
+    public function doUpdate()
     {
         // Очищаем кэш RepoGroup, чтобы при импорте корректно отразились картинки
         RepoGroup::singleton()->cache = array();
-        while ($article = array_shift($this->pending))
-            $this->update_article($article);
+        reset($this->pending);
+        // Используем each, чтобы массив можно было дополнять на ходу
+        while (list($id, $title) = each($this->pending))
+            $this->update_article($title);
         $this->pending = array();
     }
-    /* обновление статьи по заголовку */
-    function update_title($title)
-    {
-        if (!is_object($title))
-            $title = Title::makeTitleSafe(NS_MAIN, $title);
-        if (!$title)
-            return false;
-        return $this->enqueue(new Article($title));
-    }
     /* обновление статьи */
-    function update_article(&$article, $text = NULL, $revision = NULL)
+    protected function update_article($title, $text = NULL, $revision = NULL)
     {
         global $wgSiteExportHandlers, $wgParser, $wgContLang;
         $res = false;
-        $title = $article->getTitle();
-        if ($this->track[$title->getPrefixedText()])
-            return true;
+        $article = class_exists('WikiPage') ? new WikiPage($title) : new Article($title);
         $key = $title->getText();
         $dbkey = $title->getDBkey();
         foreach ($wgSiteExportHandlers as $prefix => $hspec)
@@ -101,12 +90,9 @@ class MediaWikiSiteExport
                 $options->setEditSection(false);
                 $options->setRemoveComments(false);
                 if (is_null($text))
-                {
-                    $article->loadContent();
-                    $text = $article->mContent;
-                }
-                if (is_null($revision) && $article->mRevision)
-                    $revision = $article->mRevision->getId();
+                    $text = $article instanceof WikiPage ? $article->getText() : $article->getContent();
+                if (is_null($revision) && $article->getRevision())
+                    $revision = $article->getRevision()->getId();
                 $html = $wgParser->parse($text, $title, $options, true, true, $revision)->getText();
                 /* имя файла по умолчанию */
                 if ($hspec['fspath'])
@@ -121,10 +107,10 @@ class MediaWikiSiteExport
                 /* аргументы для ссылок обратно */
                 if (is_callable($hspec['callback']))
                 {
-                    $this->track[$title->getPrefixedText()] = true;
                     $status = call_user_func_array($hspec['callback'], array(&$this, &$html, &$fn, $article, $hspec));
                     if ($status && $fn && self::mkpath(dirname($fn)) && ($fp = fopen($fn, "wb")))
                     {
+                        wfDebug("Site export $title $revision --> $fn\n");
                         fwrite($fp, $html);
                         fclose($fp);
                     }
@@ -133,9 +119,10 @@ class MediaWikiSiteExport
                 break;
             }
         }
-        $pages = self::get_links($title);
-        foreach ($pages as $page)
-            $this->update_title($page);
+        /* Обновляем статьи, включающие эту */
+        $includingPages = self::get_links($title);
+        foreach ($includingPages as $page)
+            $this->enqueue($page);
         return $res;
     }
     /* XSLT-преобразование HTML-кода */
