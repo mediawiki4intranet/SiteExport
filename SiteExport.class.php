@@ -129,7 +129,6 @@ class MediaWikiSiteExport
     static $xslt_cache = array();
     static function xslt($html, $stylesheet)
     {
-        $stylesheet = dirname(__FILE__) . '/' . str_replace('..', '', $stylesheet);
         if (!($proc = self::$xslt_cache[$stylesheet]))
         {
             $xsl = new DOMDocument();
